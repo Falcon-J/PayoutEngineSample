@@ -30,6 +30,7 @@ REDIS_URL=redis://...
 ALLOWED_HOSTS=your-backend-domain
 CORS_ALLOWED_ORIGINS=https://your-frontend-domain
 CSRF_TRUSTED_ORIGINS=https://your-frontend-domain
+CORS_ALLOW_HEADERS=x-merchant-id,idempotency-key,content-type,authorization
 ```
 
 For the frontend build:
@@ -66,6 +67,7 @@ DJANGO_DEBUG=0
 ALLOWED_HOSTS=your-backend.up.railway.app,healthcheck.railway.app
 CORS_ALLOWED_ORIGINS=https://your-frontend.vercel.app
 CSRF_TRUSTED_ORIGINS=https://your-frontend.vercel.app
+CORS_ALLOW_HEADERS=x-merchant-id,idempotency-key,content-type,authorization
 POSTGRES_DB=<from Railway Postgres>
 POSTGRES_USER=<from Railway Postgres>
 POSTGRES_PASSWORD=<from Railway Postgres>
