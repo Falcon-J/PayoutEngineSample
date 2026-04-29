@@ -40,6 +40,21 @@ VITE_API_URL=https://your-backend-domain/api/v1
 
 ## Option 1: Railway + Vercel
 
+### Free Railway shortcut
+
+If your Railway account cannot create separate web, worker, and beat services, deploy a single Railway service using the bundled free-tier start script.
+
+This runs Django, Celery worker, and Celery beat in one container. It is acceptable for the challenge demo because Celery is still doing the background processing; it is not the topology to use for a real production payment system.
+
+Use this Railway configuration:
+
+```bash
+Build: cd backend && pip install -r requirements.txt
+Start: cd backend && bash start_railway_free.sh
+```
+
+You still need PostgreSQL and Redis. If Railway will not let you create database services, use Neon or Supabase for PostgreSQL and Upstash for Redis, then paste their connection values into Railway variables.
+
 ### Railway backend
 
 1. Push the repo to GitHub.
