@@ -40,6 +40,70 @@ VITE_API_URL=https://your-backend-domain/api/v1
 
 ## Option 1: Railway + Vercel
 
+### Recommended final submission path
+
+Use Railway for the backend runtime and Vercel for the frontend static build.
+
+Railway backend:
+
+1. Push this repo to GitHub.
+2. In Railway, create a new project from the GitHub repo.
+3. Create one backend service from the repo.
+4. Set the backend service Root Directory to `/backend`.
+5. Set the Railway config file path to `/backend/railway.toml` if Railway does not auto-detect it.
+6. Add a PostgreSQL service.
+7. Add a Redis service, or use Upstash Redis if Railway Redis is unavailable.
+8. Generate a public domain for the backend service.
+9. Add the backend variables below.
+
+Backend variables:
+
+```env
+DJANGO_SETTINGS_MODULE=payout_engine.settings
+DJANGO_SECRET_KEY=replace-with-a-real-random-secret
+DEBUG=0
+DJANGO_DEBUG=0
+ALLOWED_HOSTS=your-backend.up.railway.app,healthcheck.railway.app
+CORS_ALLOWED_ORIGINS=https://your-frontend.vercel.app
+CSRF_TRUSTED_ORIGINS=https://your-frontend.vercel.app
+POSTGRES_DB=<from Railway Postgres>
+POSTGRES_USER=<from Railway Postgres>
+POSTGRES_PASSWORD=<from Railway Postgres>
+POSTGRES_HOST=<from Railway Postgres>
+POSTGRES_PORT=5432
+REDIS_URL=<from Railway Redis or Upstash>
+```
+
+The backend service uses [backend/railway.toml](backend/railway.toml):
+
+```toml
+[build]
+builder = "RAILPACK"
+buildCommand = "pip install -r requirements.txt"
+
+[deploy]
+startCommand = "bash start_railway_free.sh"
+healthcheckPath = "/healthz"
+healthcheckTimeout = 300
+```
+
+Vercel frontend:
+
+1. Import the same GitHub repo into Vercel.
+2. Set Root Directory to `frontend`.
+3. Set Build Command to `npm run build`.
+4. Set Output Directory to `dist`.
+5. Set `VITE_API_URL=https://your-backend.up.railway.app/api/v1`.
+6. Deploy after the backend domain is final.
+
+Final smoke test:
+
+```powershell
+.\scripts\smoke_deployment.ps1 -ApiBaseUrl "https://your-backend.up.railway.app/api/v1" -MerchantId 1
+```
+
+If the script passes and the Vercel Network tab shows calls to the Railway `/api/v1` endpoints with no CORS errors, the submission is wired correctly.
+
 ### Free Railway shortcut
 
 If your Railway account cannot create separate web, worker, and beat services, deploy a single Railway service using the bundled free-tier start script.

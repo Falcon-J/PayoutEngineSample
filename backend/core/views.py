@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from rest_framework import status
 from rest_framework.response import Response
@@ -12,6 +13,10 @@ from .services import (
     create_payout,
     get_merchant_balance_snapshot,
 )
+
+
+def healthz(request):
+    return JsonResponse({"status": "ok", "service": "payout-engine"})
 
 
 def demo_page(request):
