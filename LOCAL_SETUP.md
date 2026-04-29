@@ -48,6 +48,8 @@ $env:POSTGRES_PORT="5432"
 $env:REDIS_URL="redis://localhost:6379/0"
 $env:DJANGO_SETTINGS_MODULE="payout_engine.settings"
 $env:DEBUG="1"
+$env:ALLOWED_HOSTS="localhost,127.0.0.1"
+$env:CORS_ALLOWED_ORIGINS="http://127.0.0.1:5173,http://localhost:5173"
 
 # Run migrations
 python manage.py migrate
@@ -80,7 +82,11 @@ $env:POSTGRES_DB="payout"
 $env:POSTGRES_USER="postgres"
 $env:POSTGRES_PASSWORD="postgres"
 $env:POSTGRES_HOST="localhost"
+$env:POSTGRES_PORT="5432"
 $env:REDIS_URL="redis://localhost:6379/0"
+$env:DEBUG="1"
+$env:ALLOWED_HOSTS="localhost,127.0.0.1"
+$env:CORS_ALLOWED_ORIGINS="http://127.0.0.1:5173,http://localhost:5173"
 
 python manage.py runserver
 ```
@@ -102,7 +108,9 @@ $env:POSTGRES_DB="payout"
 $env:POSTGRES_USER="postgres"
 $env:POSTGRES_PASSWORD="postgres"
 $env:POSTGRES_HOST="localhost"
+$env:POSTGRES_PORT="5432"
 $env:REDIS_URL="redis://localhost:6379/0"
+$env:DEBUG="1"
 
 celery -A payout_engine worker -l info
 ```
@@ -125,7 +133,9 @@ $env:POSTGRES_DB="payout"
 $env:POSTGRES_USER="postgres"
 $env:POSTGRES_PASSWORD="postgres"
 $env:POSTGRES_HOST="localhost"
+$env:POSTGRES_PORT="5432"
 $env:REDIS_URL="redis://localhost:6379/0"
+$env:DEBUG="1"
 
 celery -A payout_engine beat -l info
 ```
@@ -137,6 +147,13 @@ Should see periodic task schedule.
 ```powershell
 cd frontend
 npm install
+npm run dev
+```
+
+Optional for a separately hosted frontend build:
+
+```powershell
+$env:VITE_API_URL="http://127.0.0.1:8000/api/v1"
 npm run dev
 ```
 

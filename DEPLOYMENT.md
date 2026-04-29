@@ -1,201 +1,235 @@
 # Deployment Guide
 
-This guide covers deploying the Playto Payout Engine to Railway or Render.
+This guide covers a production-style deployment for the Playto Payout Engine.
 
-## Prerequisites
+## Architecture
 
-- GitHub account with repository pushed
-- Railway or Render account
-- PostgreSQL and Redis instances (or use platform-provided)
+- Backend web service: Django + Gunicorn
+- Database: PostgreSQL
+- Queue and broker: Redis
+- Async worker: Celery worker
+- Scheduler: Celery beat
+- Frontend: Vite static build
 
-## Option 1: Deploy to Railway (Recommended)
+This repo needs all five runtime pieces if you want payouts to move from `pending` to `processing` to `completed` or `failed` automatically.
 
-### Step 1: Connect Repository
+## Required Environment Variables
 
-1. Go to [railway.app](https://railway.app)
-2. Click "New Project" → "Deploy from GitHub repo"
-3. Select your repository
-4. Railway will auto-detect Django app
+Set these for every backend process: web, worker, and beat.
 
-### Step 2: Create Database
-
-1. In Railway dashboard, click "+ Add Service" → "PostgreSQL"
-2. Create instance (Railway provides credentials automatically)
-
-### Step 3: Create Cache Service
-
-1. Click "+ Add Service" → "Redis"
-2. Create instance
-
-### Step 4: Configure Environment Variables
-
-In Railway project settings, add:
-
-```
+```env
 DJANGO_SETTINGS_MODULE=payout_engine.settings
+DJANGO_SECRET_KEY=replace-with-a-random-secret
 DEBUG=0
-POSTGRES_DB=railway
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=[from Railway DB service]
-POSTGRES_HOST=[Railway DB host]
-POSTGRES_PORT=[Railway DB port]
-REDIS_URL=[Railway Redis URL]
-DJANGO_SECRET_KEY=[generate random 50-char string]
-```
-
-Railway auto-injects `DATABASE_URL` and `REDIS_URL` if you link services.
-
-### Step 5: Set Build Command
-
-```bash
-cd backend && pip install -r requirements.txt && python manage.py migrate
-```
-
-### Step 6: Set Start Command
-
-```bash
-cd backend && python -m gunicorn payout_engine.wsgi:application
-```
-
-**Important:** You'll need to run Celery beat and worker separately or use APScheduler.
-
-For now, simple fix:
-- Add `APScheduler` to requirements.txt
-- OR run migrations manually, then only start web server
-
-### Step 7: Deploy Frontend
-
-1. Go to Vercel [vercel.com](https://vercel.com)
-2. Import your GitHub repo
-3. Framework: **Vite**
-4. Build command: `cd frontend && npm install && npm run build`
-5. Output directory: `frontend/dist`
-6. Environment variable: `VITE_API_URL=https://[your-railway-backend-url]/api/v1`
-
-### Step 8: Seed Data
-
-After first deploy:
-
-```bash
-# SSH into Railway container or use CLI
-railway run python manage.py seed_demo_data
-```
-
-## Option 2: Deploy to Render
-
-### Step 1: Create Web Service
-
-1. Go to [render.com](https://render.com)
-2. New → "Web Service"
-3. Connect GitHub repo
-4. Select branch
-
-### Step 2: Configure Service
-
-```
-Name: playto-payout-backend
-Environment: Python 3.11
-Build Command: cd backend && pip install -r requirements.txt && python manage.py migrate
-Start Command: cd backend && python -m gunicorn payout_engine.wsgi:application
-```
-
-### Step 3: Add Environment Variables
-
-```
-DJANGO_SETTINGS_MODULE=payout_engine.settings
-DEBUG=0
-DJANGO_SECRET_KEY=[random 50-char string]
-POSTGRES_DB=payout
-POSTGRES_USER=payout_user
-POSTGRES_PASSWORD=[generate strong password]
-POSTGRES_HOST=[your-postgres-host]
+POSTGRES_DB=...
+POSTGRES_USER=...
+POSTGRES_PASSWORD=...
+POSTGRES_HOST=...
 POSTGRES_PORT=5432
-REDIS_URL=redis://[your-redis-host]:[port]
+REDIS_URL=redis://...
+ALLOWED_HOSTS=your-backend-domain
+CORS_ALLOWED_ORIGINS=https://your-frontend-domain
+CSRF_TRUSTED_ORIGINS=https://your-frontend-domain
 ```
 
-### Step 4: Create PostgreSQL
+For the frontend build:
 
-1. Render → PostgreSQL instance
-2. Copy connection string
-3. Use to populate env vars above
+```env
+VITE_API_URL=https://your-backend-domain/api/v1
+```
 
-### Step 5: Create Redis
+## Option 1: Railway + Vercel
 
-1. Render → Redis instance
-2. Copy connection URL
-3. Use as REDIS_URL env var
+### Railway backend
 
-### Step 6: Seed Data
+1. Push the repo to GitHub.
+2. In Railway, create a new project from the repo.
+3. Add a PostgreSQL service.
+4. Add a Redis service.
+5. Create a web service from the same repo with:
 
 ```bash
-render exec playto-payout-backend -- python manage.py seed_demo_data
+Build: cd backend && pip install -r requirements.txt && python manage.py migrate
+Start: cd backend && python -m gunicorn payout_engine.wsgi:application --bind 0.0.0.0:$PORT
 ```
 
-### Step 7: Deploy Frontend to Vercel
+6. Set the backend environment variables listed above.
+7. Create a worker service from the same repo with:
 
-Same as Railway option.
+```bash
+Build: cd backend && pip install -r requirements.txt
+Start: cd backend && celery -A payout_engine worker -l info
+```
 
-## Handling Celery Tasks
+8. Create a beat service from the same repo with:
 
-**Issue:** Celery Beat (periodic task scheduler) needs to run continuously.
+```bash
+Build: cd backend && pip install -r requirements.txt
+Start: cd backend && celery -A payout_engine beat -l info
+```
 
-**Solutions:**
+9. Seed demo data after first successful deploy:
 
-1. **APScheduler (Easiest for free tier):**
-   - Replace Celery Beat with built-in Django APScheduler
-   - Tasks run within web process
-   - Simpler deployment, no extra services
+```bash
+railway run --service <web-service-name> sh -lc "cd backend && python manage.py seed_demo_data"
+```
 
-2. **Separate Celery Worker Service:**
-   - Add another Railway/Render service for Celery worker
-   - Add another service for Celery Beat
-   - Requires more setup but more robust
+### Vercel frontend
 
-For this challenge, **Option 1 is recommended** to keep deployment simple on free tier.
+1. Import the same repo into Vercel.
+2. Set root directory to `frontend`.
+3. Set build command to `npm run build`.
+4. Set output directory to `dist`.
+5. Set `VITE_API_URL=https://<your-railway-backend-domain>/api/v1`.
+6. Deploy.
 
-## Testing Live Deployment
+### Post-deploy verification
 
-After deployment:
+1. Open the frontend.
+2. Use merchant `1`.
+3. Create a payout with a fresh idempotency key.
+4. Repeat the same request with the same key and confirm it replays instead of creating a second payout.
+5. Wait 10-20 seconds and confirm the status changes from `pending`.
+6. If a payout fails, confirm the refund appears in the ledger.
 
-1. Get backend URL from Railway/Render dashboard
-2. Get frontend URL from Vercel
-3. Open frontend in browser
-4. Test merchant 1: Create payout with amount 600 INR
-5. Verify with same idempotency key → should return same payout
-6. Watch balance updates as payouts process
+## Option 2: Render + Vercel
 
-## Troubleshooting
+### Render backend
 
-### `ModuleNotFoundError: No module named 'django'`
-- Ensure `requirements.txt` in `backend/` folder
-- Build command includes `pip install -r requirements.txt`
+1. Create a PostgreSQL instance.
+2. Create a Redis instance.
+3. Create a web service from the repo:
 
-### `ProgrammingError: relation "core_merchant" does not exist`
-- Run migrations manually via CLI
-- Or check build command runs `python manage.py migrate`
+```bash
+Build: cd backend && pip install -r requirements.txt && python manage.py migrate
+Start: cd backend && python -m gunicorn payout_engine.wsgi:application --bind 0.0.0.0:$PORT
+```
 
-### Celery tasks not running
-- Background tasks won't run on free tier without worker
-- Frontend will still work, payouts stuck in `pending` forever
-- Consider upgrading to paid tier for worker service, or implement APScheduler
+4. Add the same backend environment variables.
+5. Create a background worker service:
 
-### Redis connection refused
-- Ensure REDIS_URL is correct
-- Check Redis service is running on platform
-- Verify firewall/network settings
+```bash
+Build: cd backend && pip install -r requirements.txt
+Start: cd backend && celery -A payout_engine worker -l info
+```
 
-## Performance Notes
+6. Create another background worker service for beat:
 
-- First request slower (cold start on free tier)
-- Payouts won't auto-process without Celery Beat
-- Manual testing: create payout, wait 5-10s, refresh page
-- In production, add dedicated worker service
+```bash
+Build: cd backend && pip install -r requirements.txt
+Start: cd backend && celery -A payout_engine beat -l info
+```
 
-## Security Checklist
+7. Seed demo data:
 
-- [ ] `DEBUG=0` in production
-- [ ] `DJANGO_SECRET_KEY` is random 50+ char string
-- [ ] Database password is strong (20+ chars, mixed)
-- [ ] Redis URL uses auth token if available
-- [ ] CORS headers configured if frontend on different domain
-- [ ] ALLOWED_HOSTS includes your domains in settings
+```bash
+render exec <web-service-name> -- sh -lc "cd backend && python manage.py seed_demo_data"
+```
+
+### Vercel frontend
+
+Use the same frontend steps as Railway, but point `VITE_API_URL` at the Render backend URL.
+
+## Local-to-Prod Mapping
+
+- Local `docker-compose.yml` gives you PostgreSQL and Redis.
+- Local Django `runserver` becomes Gunicorn in production.
+- Local Celery worker still exists in production as its own service.
+- Local Celery beat still exists in production as its own service.
+- Local Vite dev server proxy becomes `VITE_API_URL` in production.
+
+## Exact Service Commands
+
+### Local backend
+
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+$env:POSTGRES_DB="payout"
+$env:POSTGRES_USER="postgres"
+$env:POSTGRES_PASSWORD="postgres"
+$env:POSTGRES_HOST="localhost"
+$env:POSTGRES_PORT="5432"
+$env:REDIS_URL="redis://localhost:6379/0"
+$env:DJANGO_SETTINGS_MODULE="payout_engine.settings"
+$env:DEBUG="1"
+$env:ALLOWED_HOSTS="localhost,127.0.0.1"
+$env:CORS_ALLOWED_ORIGINS="http://127.0.0.1:5173,http://localhost:5173"
+python manage.py runserver
+```
+
+### Local worker
+
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+$env:POSTGRES_DB="payout"
+$env:POSTGRES_USER="postgres"
+$env:POSTGRES_PASSWORD="postgres"
+$env:POSTGRES_HOST="localhost"
+$env:POSTGRES_PORT="5432"
+$env:REDIS_URL="redis://localhost:6379/0"
+$env:DJANGO_SETTINGS_MODULE="payout_engine.settings"
+celery -A payout_engine worker -l info
+```
+
+### Local beat
+
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+$env:POSTGRES_DB="payout"
+$env:POSTGRES_USER="postgres"
+$env:POSTGRES_PASSWORD="postgres"
+$env:POSTGRES_HOST="localhost"
+$env:POSTGRES_PORT="5432"
+$env:REDIS_URL="redis://localhost:6379/0"
+$env:DJANGO_SETTINGS_MODULE="payout_engine.settings"
+celery -A payout_engine beat -l info
+```
+
+### Local frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+## Common Failure Modes
+
+### Frontend loads but API calls fail
+
+- `VITE_API_URL` is missing or wrong for production.
+- Backend domain is not included in `ALLOWED_HOSTS`.
+- Frontend domain is not included in `CORS_ALLOWED_ORIGINS`.
+
+### Payouts stay `pending`
+
+- Celery worker is not running.
+- Celery beat is not running.
+- `REDIS_URL` differs between services.
+
+### Backend deploys but crashes on start
+
+- `gunicorn` was not installed from `backend/requirements.txt`.
+- The service started from repo root instead of `backend`.
+- Required PostgreSQL env vars are missing.
+
+### Seed command fails
+
+- Migrations did not run.
+- The seed command was executed from the repo root instead of `backend`.
+
+## Production Checklist
+
+- `DEBUG=0`
+- Strong `DJANGO_SECRET_KEY`
+- Real backend hostname in `ALLOWED_HOSTS`
+- Real frontend origin in `CORS_ALLOWED_ORIGINS`
+- Web service deployed
+- Worker service deployed
+- Beat service deployed
+- Migrations executed
+- Demo data seeded
+- Frontend `VITE_API_URL` points to `/api/v1`

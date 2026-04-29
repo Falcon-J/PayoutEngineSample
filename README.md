@@ -60,7 +60,7 @@ From `backend`:
 ```bat
 python -m venv venv
 venv\Scripts\activate
-pip install django djangorestframework celery redis psycopg2-binary
+pip install -r requirements.txt
 
 set POSTGRES_DB=payout
 set POSTGRES_USER=postgres
@@ -69,6 +69,9 @@ set POSTGRES_HOST=localhost
 set POSTGRES_PORT=5432
 set REDIS_URL=redis://localhost:6379/0
 set DJANGO_SETTINGS_MODULE=payout_engine.settings
+set DEBUG=1
+set ALLOWED_HOSTS=localhost,127.0.0.1
+set CORS_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 
 python manage.py migrate
 python manage.py seed_demo_data
@@ -79,7 +82,7 @@ python manage.py seed_demo_data
 ```powershell
 python -m venv venv
 .\venv\Scripts\Activate.ps1
-pip install django djangorestframework celery redis psycopg2-binary
+pip install -r requirements.txt
 
 $env:POSTGRES_DB="payout"
 $env:POSTGRES_USER="postgres"
@@ -88,6 +91,9 @@ $env:POSTGRES_HOST="localhost"
 $env:POSTGRES_PORT="5432"
 $env:REDIS_URL="redis://localhost:6379/0"
 $env:DJANGO_SETTINGS_MODULE="payout_engine.settings"
+$env:DEBUG="1"
+$env:ALLOWED_HOSTS="localhost,127.0.0.1"
+$env:CORS_ALLOWED_ORIGINS="http://127.0.0.1:5173,http://localhost:5173"
 
 python manage.py migrate
 python manage.py seed_demo_data
@@ -127,6 +133,12 @@ npm run dev
 Open:
 - Frontend: `http://127.0.0.1:5173`
 - Backend demo page (optional): `http://127.0.0.1:8000/`
+
+For a separately hosted frontend build, set:
+
+```bash
+VITE_API_URL=https://your-backend.example.com/api/v1
+```
 
 ## API Contract
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-const API = "/api/v1";
+const API = (import.meta.env.VITE_API_URL || "/api/v1").replace(/\/$/, "");
 
 function Badge({ status }) {
   const classes = {
