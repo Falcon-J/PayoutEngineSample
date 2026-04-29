@@ -9,6 +9,10 @@ class PayoutCreateSerializer(serializers.Serializer):
     bank_account_id = serializers.CharField(max_length=128)
 
 
+class MerchantCreditSerializer(serializers.Serializer):
+    amount_paise = serializers.IntegerField(min_value=1)
+
+
 class PayoutSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payout

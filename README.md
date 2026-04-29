@@ -194,12 +194,38 @@ Response:
 - `GET /api/v1/ledger?limit=10`
 - Header: `X-Merchant-Id`
 
+### Demo Credit
+
+- `POST /api/v1/credits`
+- Header: `X-Merchant-Id`
+- Body:
+
+```json
+{
+  "amount_paise": 500000
+}
+```
+
 ## Seed Data
 
 Seed command creates 3 merchants and credit history:
 
 ```bash
 python manage.py seed_demo_data
+```
+
+To increase a merchant balance for demo testing:
+
+```bash
+python manage.py credit_merchant --merchant-id 1 --amount-inr 5000
+```
+
+The deployed dashboard also includes a "Demo Balance Top-Up" form that creates the same `manual_credit` ledger entry through `POST /api/v1/credits`.
+
+On Railway, run the same command from the backend service shell or one-off command:
+
+```bash
+python manage.py credit_merchant --merchant-id 1 --amount-inr 5000
 ```
 
 ## Tests

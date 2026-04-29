@@ -5,7 +5,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import LedgerEntry, Merchant, Payout
-from .serializers import BalanceSerializer, LedgerEntrySerializer, PayoutCreateSerializer, PayoutSerializer
+from .serializers import (
+    BalanceSerializer,
+    LedgerEntrySerializer,
+    MerchantCreditSerializer,
+    PayoutCreateSerializer,
+    PayoutSerializer,
+)
 from .services import (
     InsufficientBalance,
     MissingIdempotencyKey,
@@ -101,3 +107,21 @@ class LedgerListView(MerchantHeaderMixin, APIView):
         entries = LedgerEntry.objects.filter(merchant=merchant).order_by("-created_at")[:limit]
         serializer = LedgerEntrySerializer(entries, many=True)
         return Response(serializer.data)
+
+
+class MerchantCreditView(MerchantHeaderMixin, APIView):
+    def post(self, request):
+        merchant, error = self.get_merchant(request)
+        if error:
+            return error
+
+        serializer = MerchantCreditSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        entry = LedgerEntry.objects.create(
+            merchant=merchant,
+            entry_type=LedgerEntry.EntryType.CREDIT,
+            kind=LedgerEntry.Kind.MANUAL_CREDIT,
+            amount_paise=serializer.validated_data["amount_paise"],
+        )
+        return Response(LedgerEntrySerializer(entry).data, status=status.HTTP_201_CREATED)

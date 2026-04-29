@@ -55,6 +55,7 @@ export default function App() {
   const [payouts, setPayouts] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [amountInr, setAmountInr] = useState("50.00");
+  const [creditAmountInr, setCreditAmountInr] = useState("5000.00");
   const [bankAccountId, setBankAccountId] = useState("bank_demo_001");
   const [idempotencyKey, setIdempotencyKey] = useState("demo-key-001");
   const [message, setMessage] = useState("");
@@ -105,6 +106,27 @@ export default function App() {
     } else {
       setMessage("Payout created");
     }
+    await refresh();
+  }
+
+  async function creditMerchant() {
+    setMessage("Adding demo credit...");
+    const amountPaise = parseInrToPaise(creditAmountInr);
+    if (!Number.isInteger(amountPaise) || amountPaise <= 0) {
+      throw new Error("Enter a valid credit amount greater than 0");
+    }
+
+    const res = await fetch(`${API}/credits`, {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ amount_paise: amountPaise }),
+    });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.detail || "Failed to add demo credit");
+    setMessage(`Added demo credit of ${formatInrFromPaise(payload.amount_paise)}`);
     await refresh();
   }
 
@@ -166,6 +188,24 @@ export default function App() {
           </div>
           <div className="mt-2 text-xs text-slate-400">UI takes INR and converts to paise internally before API call.</div>
           <div className="mt-2 text-sm text-cyan-300">{message}</div>
+        </div>
+
+        <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900 p-4">
+          <h2 className="text-lg font-semibold">Demo Balance Top-Up</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Adds a manual credit ledger entry for reviewers. This preserves the audit trail instead of overwriting balance.
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+            <input
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+              placeholder="credit amount in INR"
+              value={creditAmountInr}
+              onChange={(e) => setCreditAmountInr(e.target.value)}
+            />
+            <button onClick={() => creditMerchant().catch((e) => setMessage(e.message))} className="rounded-lg bg-emerald-700 px-4 py-2 font-semibold hover:bg-emerald-600">
+              Add Demo Credit
+            </button>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">

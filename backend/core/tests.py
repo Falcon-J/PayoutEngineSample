@@ -1,8 +1,10 @@
 import threading
 from datetime import timedelta
 
+from django.core.management import call_command
 from django.db import close_old_connections
 from django.test import TransactionTestCase
+from rest_framework.test import APIClient
 from django.utils import timezone
 
 from .models import IdempotencyRecord, LedgerEntry, Merchant, Payout
@@ -14,6 +16,7 @@ class PayoutEngineTests(TransactionTestCase):
 
     def setUp(self):
         self.merchant = Merchant.objects.create(name="Test Merchant")
+        self.client = APIClient()
         LedgerEntry.objects.create(
             merchant=self.merchant,
             entry_type=LedgerEntry.EntryType.CREDIT,
@@ -116,3 +119,33 @@ class PayoutEngineTests(TransactionTestCase):
         self.assertTrue(first.created)
         self.assertTrue(second.created)
         self.assertNotEqual(first.payout.id, second.payout.id)
+
+    def test_credit_merchant_command_adds_manual_credit(self):
+        call_command("credit_merchant", merchant_id=self.merchant.id, amount_inr="123.45")
+
+        self.assertTrue(
+            LedgerEntry.objects.filter(
+                merchant=self.merchant,
+                entry_type=LedgerEntry.EntryType.CREDIT,
+                kind=LedgerEntry.Kind.MANUAL_CREDIT,
+                amount_paise=12_345,
+            ).exists()
+        )
+
+    def test_credit_endpoint_adds_manual_credit(self):
+        response = self.client.post(
+            "/api/v1/credits",
+            {"amount_paise": 50_000},
+            format="json",
+            HTTP_X_MERCHANT_ID=str(self.merchant.id),
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(
+            LedgerEntry.objects.filter(
+                merchant=self.merchant,
+                entry_type=LedgerEntry.EntryType.CREDIT,
+                kind=LedgerEntry.Kind.MANUAL_CREDIT,
+                amount_paise=50_000,
+            ).exists()
+        )

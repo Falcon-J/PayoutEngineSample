@@ -106,6 +106,14 @@ Final smoke test:
 
 If the script passes and the Vercel Network tab shows calls to the Railway `/api/v1` endpoints with no CORS errors, the submission is wired correctly.
 
+If reviewers want a larger balance for merchant `1`, run this in the Railway backend service shell:
+
+```bash
+python manage.py credit_merchant --merchant-id 1 --amount-inr 5000
+```
+
+This creates a manual credit ledger entry for INR 5,000.00 without editing the database manually. The deployed frontend also has a "Demo Balance Top-Up" form that performs the same operation from the dashboard.
+
 ### Free Railway shortcut
 
 If your Railway account cannot create separate web, worker, and beat services, deploy a single Railway service using the bundled free-tier start script.
