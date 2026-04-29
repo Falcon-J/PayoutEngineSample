@@ -69,11 +69,11 @@ WSGI_APPLICATION = "payout_engine.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "payout"),
-        "USER": os.getenv("POSTGRES_USER", "postgres"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "postgres"),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "NAME": os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE", "payout"),
+        "USER": os.getenv("POSTGRES_USER") or os.getenv("PGUSER", "postgres"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD", "postgres"),
+        "HOST": os.getenv("POSTGRES_HOST") or os.getenv("PGHOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT") or os.getenv("PGPORT", "5432"),
     }
 }
 
