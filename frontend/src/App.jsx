@@ -1,6 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 
-const API = (import.meta.env.VITE_API_URL || "/api/v1").replace(/\/$/, "");
+function normalizeApiBase(value) {
+  const rawValue = String(value || "/api/v1").trim().replace(/\/+$/, "");
+  if (!rawValue) return "/api/v1";
+
+  const withProtocol =
+    rawValue.startsWith("http://") || rawValue.startsWith("https://") || rawValue.startsWith("/")
+      ? rawValue
+      : `https://${rawValue}`;
+
+  if (withProtocol.startsWith("/") || withProtocol.endsWith("/api/v1")) {
+    return withProtocol;
+  }
+
+  return `${withProtocol}/api/v1`;
+}
+
+const API = normalizeApiBase(import.meta.env.VITE_API_URL);
 
 function Badge({ status }) {
   const classes = {
