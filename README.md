@@ -140,6 +140,20 @@ For a separately hosted frontend build, set:
 VITE_API_URL=https://your-backend.example.com/api/v1
 ```
 
+The matching backend production variables must trust the frontend domain:
+
+```env
+ALLOWED_HOSTS=your-backend.example.com
+CORS_ALLOWED_ORIGINS=https://your-frontend.example.com
+CSRF_TRUSTED_ORIGINS=https://your-frontend.example.com
+```
+
+Before testing the deployed frontend, verify the deployed backend API:
+
+```powershell
+.\scripts\smoke_deployment.ps1 -ApiBaseUrl "https://your-backend.example.com/api/v1" -MerchantId 1
+```
+
 ## API Contract
 
 ### Balance
@@ -249,14 +263,18 @@ Before submitting, verify all boxes:
 1. `module payout_engine was not found`
 - Run commands from `backend` folder.
 
-2. `connection refused localhost:5432`
+2. `No module named 'psycopg'` or `libpq.so.5: cannot open shared object file`
+- Reinstall backend dependencies with `pip install -r requirements.txt`.
+- For custom Docker images, install PostgreSQL runtime libraries too: Debian/Ubuntu needs `libpq5`; Alpine needs `postgresql-libs`.
+
+3. `connection refused localhost:5432`
 - PostgreSQL is not running.
 
-3. `relation core_merchant does not exist`
+4. `relation core_merchant does not exist`
 - Run migrations.
 
-4. Celery WinError 5/6 on Windows
+5. Celery WinError 5/6 on Windows
 - Use configured solo pool (already set in settings).
 
-5. `$env:` syntax error
+6. `$env:` syntax error
 - You are in cmd. Use `set KEY=value` in cmd, `$env:KEY="value"` in PowerShell.
