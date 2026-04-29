@@ -98,6 +98,48 @@ railway run --service <web-service-name> sh -lc "cd backend && python manage.py 
 5. Set `VITE_API_URL=https://<your-railway-backend-domain>/api/v1`.
 6. Deploy.
 
+### Connect frontend and backend correctly
+
+Use this rule: the frontend points to the backend API base, and the backend explicitly trusts the frontend origin.
+
+Example production values:
+
+```env
+# Backend service variables
+DEBUG=0
+DJANGO_DEBUG=0
+ALLOWED_HOSTS=your-backend.up.railway.app
+CORS_ALLOWED_ORIGINS=https://your-frontend.vercel.app
+CSRF_TRUSTED_ORIGINS=https://your-frontend.vercel.app
+
+# Frontend build variable
+VITE_API_URL=https://your-backend.up.railway.app/api/v1
+```
+
+Important details:
+
+- `VITE_API_URL` is read at frontend build time. If you change it in Vercel, redeploy the frontend.
+- `VITE_API_URL` must include `/api/v1`.
+- `ALLOWED_HOSTS` must contain only the backend hostname, without `https://`.
+- `CORS_ALLOWED_ORIGINS` must contain the full frontend origin, including `https://`.
+- Do not put a trailing slash in `VITE_API_URL`; the frontend removes one if present, but keeping it exact avoids confusion.
+
+Run this backend smoke test before opening the frontend:
+
+```powershell
+.\scripts\smoke_deployment.ps1 -ApiBaseUrl "https://your-backend.up.railway.app/api/v1" -MerchantId 1
+```
+
+Expected result: balance, payouts, and ledger endpoints return JSON and the script prints `Deployment smoke test passed`.
+
+Then verify from the deployed frontend:
+
+1. Open the browser developer tools Network tab.
+2. Reload the frontend.
+3. Confirm requests go to `https://your-backend.../api/v1/balance`, `/payouts`, and `/ledger?limit=10`.
+4. Confirm there are no CORS errors and no `400 DisallowedHost` responses.
+5. Create a payout with a new idempotency key, then submit the same key again and confirm it replays the existing payout.
+
 ### Post-deploy verification
 
 1. Open the frontend.
@@ -230,6 +272,19 @@ npm run dev
 - `gunicorn` was not installed from `backend/requirements.txt`.
 - The service started from repo root instead of `backend`.
 - Required PostgreSQL env vars are missing.
+- PostgreSQL driver dependencies were not installed. `backend/requirements.txt` must include `psycopg[binary]`; if you build a custom Debian/Ubuntu Docker image, install `libpq5` in the runtime image.
+
+For a custom Debian/Ubuntu backend Dockerfile:
+
+```dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 && rm -rf /var/lib/apt/lists/*
+```
+
+For a custom Alpine backend Dockerfile:
+
+```dockerfile
+RUN apk add --no-cache postgresql-libs
+```
 
 ### Seed command fails
 
